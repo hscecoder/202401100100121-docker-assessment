@@ -1,197 +1,106 @@
-# Docker & Container Security Assessment
-## Himanshu Soni
-**Registration Number:** `202401100100121`
+# Docker & Container Security — Practical Assessment
 
-### Docker Hub repository	https://hub.docker.com/r/h30s/fest-backend
+## Student Details
 
-A containerized FEST application built as part of a Docker and Container Security practical assessment. The project demonstrates how to package an application, run multiple services with Docker Compose, scan container images for vulnerabilities, and work with image signing and verification.
+- **Name:** Himanshu Soni
+- **Registration Number (REGNO):** 202401100100121
+- **Port (PORT):** 8021
+- **Docker Hub Username:** h30s
+- **Docker Hub Repository:** https://hub.docker.com/r/h30s/fest-backend
+- **GitHub Repository:** https://github.com/hscecoder/202401100100121-docker-assessment
 
-## Overview
+## 1. Objective
+
+To containerise the FestPass three-tier web application using Docker, manage its services using Docker Compose, scan and fix image vulnerabilities using Trivy, publish versioned backend images to Docker Hub, and sign and verify images using Cosign.
+
+## 2. Application Architecture
 
 The application consists of three services:
 
-- **Frontend:** Nginx serves the FEST web page.
-- **Backend:** A Python Flask application provides API endpoints.
-- **Database:** PostgreSQL provides the database service with persistent storage.
+- **Frontend:** HTML page served by Nginx.
+- **Backend:** Python Flask API.
+- **Database:** PostgreSQL for persistent registration data.
 
-Docker Compose brings the services together, while separate networks control communication between the application and database services.
+Docker Compose manages the services. Separate networks restrict direct communication between the frontend and database, while a named volume provides persistent database storage.
 
-## Tech Stack
+## 3. Stage 1 — Containerise the Backend
 
-- Docker and Docker Compose
-- Python and Flask
-- Nginx
-- PostgreSQL
-- Trivy for vulnerability scanning
-- Cosign for image signing and verification
-- Git and GitHub
+The backend is containerised using a Dockerfile. Its dependencies are installed, application files are copied into the image, and the Flask application is exposed through the required port.
 
-## Project Structure
+**Files:** `backend/Dockerfile`, `backend/app.py`, `backend/requirements.txt`, `backend/.dockerignore`
 
-```text
-202401100100121-docker-assessment/
-├── backend/
-│   ├── app.py
-│   ├── requirements.txt
-│   ├── Dockerfile
-│   └── .dockerignore
-├── frontend/
-│   ├── index.html
-│   └── nginx.conf
-├── reports/
-├── screenshots/
-├── docker-compose.yml
-└── README.md
-```
+**Verification:** Build and run the backend image, then check the health endpoint and registration number.
 
-## Getting Started
+**Evidence:** `screenshots/` — Stage 1 screenshots as specified in the assessment.
 
-### Prerequisites
+## 4. Stage 2 — Docker Compose
 
-Install Docker Desktop and Git. Make sure Docker Desktop is running before executing the commands below.
+Docker Compose is used to run the frontend, backend, and PostgreSQL database together.
 
-### 1. Clone the repository
+- Frontend uses `nginx:1.30-alpine`.
+- PostgreSQL uses `postgres:17-alpine`.
+- Frontend and backend share one network.
+- Backend and database share a separate network.
+- A named volume stores database data.
+- Environment variables are configured without committing secrets to Git.
 
-```bash
-git clone https://github.com/hscecoder/202401100100121-docker-assessment.git
-cd 202401100100121-docker-assessment
-```
+**Verification:** Open `http://localhost:8021`, add two registrations, restart the Compose stack, and verify that the registrations remain available. Confirm that the frontend cannot directly reach the database.
 
-### 2. Build and start the application
+**Evidence:** Compose configuration, `.env.example`, and the relevant Stage 2 screenshots.
 
-```bash
-docker compose up --build -d
-```
+## 5. Stage 3 — Vulnerability Scanning with Trivy
 
-### 3. Check running containers
+Trivy is used to scan the initial backend image, identify vulnerabilities, and verify the updated image after remediation.
 
-```bash
-docker compose ps
-```
+The remediation process includes using a pinned slim or Alpine Python base image, running the application as a non-root user, and upgrading vulnerable dependencies.
 
-### 4. Open the frontend
+Reports are saved as:
 
-Open the published frontend port shown by `docker compose ps` in your browser. In the current local setup, the frontend has been accessible at:
+- `reports/trivy-before.txt`
+- `reports/trivy-after.txt`
 
-`http://localhost:8021`
+### Before-and-After Results
 
-The published port may differ if the Compose configuration changes.
+**Evidence:** Trivy reports and Stage 3 screenshots. is in the folder please check!
 
-### 5. Test the backend
+## 6. Stage 4 — Versioning and Publishing
 
-The backend exposes its API on port `5000` inside the Docker network. To test it locally, first confirm the backend port mapping in `docker compose.yml`. If the backend is not published to the host, test it from inside the Compose network or configure a temporary local port mapping.
+The fixed backend image is versioned and published to the public Docker Hub repository.
 
-Health endpoint:
+Required release tags:
 
-```text
-/api/health
-```
+- `h30s/fest-backend:1.0.0`
+- `h30s/fest-backend:1.0`
 
-Example request, when the backend is available on local port `5000`:
+Both tags must be pushed to Docker Hub. The Compose configuration must then use the published `1.0.0` image rather than building the backend locally.
 
-```bash
-curl http://localhost:5000/api/health
-```
+### Published Image Details
 
-### 6. Stop the application
+- **Repository:** https://hub.docker.com/r/h30s/fest-backend
+- **Release version:** `1.0.0`
+- **Image digest:** sha256:c3a07634d81bb24151024b08605f463ed863b334d197b55085e493a43d8bb8a7
 
-```bash
-docker compose down
-```
+**Verification:** Remove the local backend image, start the Compose stack, and verify that the backend image is pulled from Docker Hub and the application displays version `1.0.0`.
 
-To remove the Compose-managed database volume as well, use the following command carefully. It deletes the stored database data.
+**Evidence:** Push output, Docker Hub Tags page, digest, and Stage 4 screenshots.
 
-```bash
-docker compose down -v
-```
+## 7. Stage 5 — Image Signing and Verification with Cosign
 
-## Docker Configuration
+Cosign is used to establish the authenticity of the released backend image.
 
-The backend is packaged using a Dockerfile that installs Python dependencies and runs the Flask application inside a container.
+1. Generate a password-protected Cosign key pair.
+2. Add `*.key` to `.gitignore` and commit only `cosign.pub`.
+3. Sign version `1.0.0` using its image digest.
+4. Verify the signature using `cosign.pub`.
+5. Publish version `1.0.1` without signing it and demonstrate that Cosign rejects its verification.
 
-Docker Compose defines the frontend, backend, and PostgreSQL services. It also configures service dependencies, environment variables, networking, and persistent database storage.
+The private key, passwords, access tokens, and environment secrets must never be committed to Git.
 
-The database uses a named volume so its data can survive container recreation.
+**Evidence:** Public key, signature and verification output, unsigned-image rejection, and Stage 5 screenshots.
 
-## Container Security
+## 8. AI Tools Used
 
-### Vulnerability Scanning with Trivy
+- **ChatGPT:** Used for understanding assessment requirements, troubleshooting commands, and preparing documentation.
+- **Other AI tools:** Declare any additional tools actually used for this assessment and describe their purpose.
 
-Trivy is used to scan the backend image for known vulnerabilities.
-
-Example:
-
-```bash
-trivy image --severity HIGH,CRITICAL fest-backend:0.1
-```
-
-After updating vulnerable dependencies or the base image, rebuild the image and scan it again:
-
-```bash
-docker build --no-cache -t fest-backend:0.1 ./backend
-trivy image --severity HIGH,CRITICAL fest-backend:0.1
-```
-
-Scan results and supporting evidence should be stored in the `reports/` directory.
-
-> A successful scan command does not automatically mean the image is vulnerability-free. Review the final report and document the remaining findings accurately.
-
-### Image Versioning and Docker Hub
-
-The backend image is version-tagged to make releases easier to identify and reproduce.
-
-Docker Hub username: `h30s`
-
-Repository naming format:
-
-```text
-h30s/fest-backend:<version>
-```
-
-Example commands:
-
-```bash
-docker tag fest-backend:0.1 h30s/fest-backend:0.1
-docker login
-docker push h30s/fest-backend:0.1
-```
-
-Use the exact image tag that was successfully built, scanned, and published.
-
-### Image Signing with Cosign
-
-Cosign can be used to sign a published container image and verify its signature.
-
-The signing and verification commands depend on the selected signing method and key configuration. Include the exact commands and successful verification output used during the assessment in the evidence section.
-
-The unsigned-image rejection test should also be documented with its actual output. Do not treat a failed verification as proof of rejection unless the test was performed against the intended unsigned image.
-
-## Evidence and Screenshots
-
-The `screenshots/` directory is intended to contain evidence from the practical assessment.
-
-Recommended evidence:
-
-1. Frontend running in the browser.
-2. Backend API health-check response.
-3. Docker Compose services running.
-4. Configured Docker networks and persistent volume.
-5. Initial Trivy vulnerability scan.
-6. Updated image and final Trivy scan.
-7. Published, version-tagged Docker Hub image.
-8. Cosign signing and successful verification.
-9. Unsigned-image verification or rejection test.
-
-## Assessment Summary
-
-This project brings together application containerization, multi-service orchestration, persistent storage, image vulnerability scanning, image versioning, and container image signing.
-
-The commands and evidence above are intended to make the setup reproducible and the security workflow easy to review.
-
-## Author
-
-**Registration Number:** `202401100100121`
-
-**GitHub:** [hscecoder](https://github.com/hscecoder)
-
-**Repository:** [202401100100121-docker-assessment](https://github.com/hscecoder/202401100100121-docker-assessment)
+All commands and verification steps must be run on the student's own machine.
