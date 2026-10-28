@@ -71,7 +71,7 @@ docker compose ps
 
 Open the published frontend port shown by `docker compose ps` in your browser. In the current local setup, the frontend has been accessible at:
 
-`http://localhost:8036`
+`http://localhost:8021`
 
 The published port may differ if the Compose configuration changes.
 
